@@ -1,25 +1,94 @@
 from flask import Flask, request, jsonify
+import csv
+from pathlib import Path
 
 app = Flask(__name__)
+CATALOG_FILE = Path(__file__).parent / "catalog.csv"
 
-# -------------------------
-# ROUTES 
-# -------------------------
+def load_catalog():
+    items = []
+    with open(CATALOG_FILE, newline='', encoding='utf-8') as f:
+        for row in csv.DictReader(f):
+            row["id"] = int(row["id"])
+            row["price"] = float(row["price"])
+            row["quantity"] = int(row["quantity"])
+            items.append(row)
+    return items
 
-@app.route('/search/<topic>', methods=['GET'])
-def search_books(topic):
-    return jsonify({"message": f"search endpoint ready. topic={topic}"}), 200
+def save_catalog(items):
+    with open(CATALOG_FILE, "w", newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=["id","title","topic","price","quantity"])
+        writer.writeheader()
+        for it in items:
+            writer.writerow({
+                "id": it["id"],
+                "title": it["title"],
+                "topic": it["topic"],
+                "price": it["price"],
+                "quantity": it["quantity"],
+            })
 
-@app.route('/info/<item_id>', methods=['GET'])
+def find_item(items, item_id):
+    for it in items:
+        if it["id"] == item_id:
+            return it
+    return None
+
+# ---------------------------
+# REST ENDPOINTS
+# ---------------------------
+
+# GET /search/<topic>
+@app.route("/search/<topic>", methods=["GET"])
+def search_by_topic(topic):
+    items = load_catalog()
+    matches = [{"id": it["id"], "title": it["title"]}
+               for it in items if it["topic"].lower() == topic.lower()]
+    return jsonify(matches), 200
+
+# GET /info/<int:item_id>
+@app.route("/info/<int:item_id>", methods=["GET"])
 def info(item_id):
-    return jsonify({"message": f"info endpoint ready. item_id={item_id}"}), 200
+    items = load_catalog()
+    it = find_item(items, item_id)
+    if not it:
+        return jsonify({"error": "item_not_found"}), 404
+    return jsonify({
+        "title": it["title"],
+        "quantity": it["quantity"],
+        "price": it["price"]
+    }), 200
 
-@app.route('/update', methods=['POST'])
-def update_book():
-    return jsonify({"message": "update endpoint ready"}), 200
 
-# -------------------------
+@app.route("/update", methods=["POST"])
+def update_item():
+    body = request.get_json(silent=True) or {}
+    item_id = body.get("item_id")
+    if not item_id:
+        return jsonify({"error": "missing_item_id"}), 400
 
-# -------------------------
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001)
+    items = load_catalog()
+    it = find_item(items, int(item_id))
+    if not it:
+        return jsonify({"error": "item_not_found"}), 404
+
+
+    if "delta" in body:
+        new_q = it["quantity"] + int(body["delta"])
+        if new_q < 0:
+            return jsonify({"error": "negative_stock_not_allowed"}), 400
+        it["quantity"] = new_q
+
+
+    if "price" in body:
+        price = float(body["price"])
+        if price < 0:
+            return jsonify({"error": "negative_price_not_allowed"}), 400
+        it["price"] = price
+
+    save_catalog(items)
+    return jsonify({"status": "ok"}), 200
+
+# ---------------------------
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5001)
