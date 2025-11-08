@@ -3,24 +3,48 @@ import requests
 
 app = Flask(__name__)
 
-# -------------------------
-# ROUTES 
-# -------------------------
 
+CATALOG_URL = "http://localhost:5001"
+ORDER_URL = "http://localhost:5002"
+
+# ------------------------------------------------
+# SEARCH ENDPOINT
+# ------------------------------------------------
 @app.route('/search/<topic>', methods=['GET'])
 def fe_search(topic):
-    return jsonify({"message": f"frontend search ready. topic={topic}"}), 200
+    try:
+        response = requests.get(f"{CATALOG_URL}/search/{topic}")
+        return jsonify(response.json()), response.status_code
+    except:
+        return jsonify({"error": "catalog_unreachable"}), 500
 
-@app.route('/info/<item_id>', methods=['GET'])
+
+# ------------------------------------------------
+# INFO ENDPOINT
+# ------------------------------------------------
+@app.route('/info/<int:item_id>', methods=['GET'])
 def fe_info(item_id):
-    return jsonify({"message": f"frontend info ready. item={item_id}"}), 200
+    try:
+        response = requests.get(f"{CATALOG_URL}/info/{item_id}")
+        return jsonify(response.json()), response.status_code
+    except:
+        return jsonify({"error": "catalog_unreachable"}), 500
 
-@app.route('/purchase/<item_id>', methods=['POST', 'GET'])
+
+# ------------------------------------------------
+# PURCHASE ENDPOINT
+# ------------------------------------------------
+@app.route('/purchase/<int:item_id>', methods=['POST', 'GET'])
 def fe_purchase(item_id):
-    return jsonify({"message": f"frontend purchase ready. item={item_id}"}), 200
+    try:
+        response = requests.post(f"{ORDER_URL}/purchase/{item_id}")
+        return jsonify(response.json()), response.status_code
+    except:
+        return jsonify({"error": "order_unreachable"}), 500
 
-# -------------------------
 
-# -------------------------
+# ------------------------------------------------
+# RUN SERVICE
+# ------------------------------------------------
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
