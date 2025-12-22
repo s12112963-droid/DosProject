@@ -1,2 +1,13 @@
 # DosProject
-note there are two branches the main have part 1 of the project and the other part 2
+
+## Branches
+
+- **main**  
+  Contains Part 1 implementation.
+
+- **part2**  
+  Contains Part 2 implementation.
+
+## Notes
+
+- The `docs/` directory includes all written documentation required for submission.
